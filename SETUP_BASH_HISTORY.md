@@ -76,3 +76,55 @@ This document describes how to set up persistent Bash history for Claude Code in
 - These settings are user-specific and apply to the current user's Bash sessions.
 - To apply changes in an existing terminal, run: `source ~/.bashrc`
 - The history summary script requires `jq` for timestamp formatting (falls back to raw lines if `jq` is not available).
+
+## Automation Setup (Added Later)
+
+In addition to the bash history setup, the following automation was added to `~/.bashrc` to run on every shell startup:
+
+```bash
+# ==== Claude Code automation setup ====
+# Install uv if not present
+if ! command -v uv &> /dev/null; then
+    curl -LsSf https://astral.sh/uv/install.sh | sh
+fi
+export PATH="$HOME/.local/bin:$PATH"
+
+# Install @anthropic-ai/claude-code globally if not present
+if ! npm list -g @anthropic-ai/claude-code &> /dev/null; then
+    npm install -g @anthropic-ai/claude-code
+fi
+
+# Install uv python 3.14 if not installed
+if ! uv python list | grep -q "3.14"; then
+    uv python install 3.14
+fi
+
+# Install free-claude-code tool if not present or force update
+if ! uv tool list | grep -q "free-claude-code"; then
+    uv tool install --force git+https://github.com/Alishahryar1/free-claude-code.git
+else
+    # Optionally update
+    uv tool upgrade --force git+https://github.com/Alishahryar1/free-claude-code.git
+fi
+
+# Set environment variables
+export ANTHROPIC_AUTH_TOKEN="freecc"
+export ANTHROPIC_BASE_URL="http://127.0.0.1:8082"
+
+# Start fcc-server if not already running
+if ! pgrep -f fcc-server > /dev/null; then
+    pkill -f fcc-server || true
+    fcc-server > "$HOME/proxy.log" 2>&1 &
+fi
+
+# Small delay to ensure server is up
+sleep 2
+```
+
+This automation ensures that:
+1. `uv` is installed and in PATH
+2. `@anthropic-ai/claude-code` is installed globally via npm
+3. Python 3.14 is installed via uv
+4. The `free-claude-code` tool is installed/updated from GitHub
+5. Required environment variables are set
+6. The `fcc-server` is started in the background (if not already running) and logs to `~/proxy.log`
